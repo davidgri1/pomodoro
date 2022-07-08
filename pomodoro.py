@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtGui
 from PyQt5.QtGui import * 
 from PyQt5.QtCore import * 
 import sys
+import logging
 
 from plyer import notification 
 
@@ -14,6 +15,7 @@ class Window(QWidget):
         self.running = False
         self.num_pomodoros = 0
         self.mode = "Pomodoro"
+        self.minute_length = 60 #In Seconds
 
         self.title = "Pomodoro"
         self.left = 20
@@ -30,14 +32,18 @@ class Window(QWidget):
         self.label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet("QLabel {font-family: Lucida Console; font-size:25px;}")
-        self.set_label()
 
         self.mode_label = QLabel()
         self.mode_label.setAlignment(Qt.AlignCenter)
         self.mode_label.setStyleSheet("QLabel {font-size:20px;}")
         self.mode_label.setText(self.mode)
 
-        
+        self.num_pomodoros_label = QLabel()
+        self.num_pomodoros_label.setAlignment(Qt.AlignCenter)
+        self.num_pomodoros_label.setStyleSheet("QLabel {font-size:20px;}")
+        self.num_pomodoros_label.setText(str(self.num_pomodoros))
+
+        self.set_label()
         start_button = QPushButton("Start", self)
 
         stop_button = QPushButton("Stop", self)
@@ -54,6 +60,7 @@ class Window(QWidget):
 
         layout_outer = QVBoxLayout()
         layout_outer.addWidget(self.mode_label)
+        layout_outer.addWidget(self.num_pomodoros_label)
         layout_outer.addWidget(self.label)
 
         layout_start_stop = QHBoxLayout()
@@ -69,21 +76,22 @@ class Window(QWidget):
         layout_outer.addLayout(layout_buttons)
         self.setLayout(layout_outer)
 
-
         self.timer.start(1000)
-    
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
     def set_label(self):
-        seconds = str(self.time%60) if len(str(self.time%60)) == 2 else "0" + str(self.time%60)
-        self.label.setText(str(int(self.time / 60)) + " : "  + seconds)
+        seconds = (str(self.time % 60)
+                    if len(str(self.time % 60)) == 2 
+                    else "0" + str(self.time % 60))
+        self.label.setText(str(int(self.time / 60)) + " : " + seconds)
 
+        self.num_pomodoros_label.setText(str(self.num_pomodoros))
     def update_time(self):
         if self.running:
             self.time -= 1
             self.set_label()
-            if self.time == 0:
+            if self.time <= 0:
                 if self.mode == "Pomodoro":
                     if self.num_pomodoros % 3 == 0 and self.num_pomodoros != 0:
                         notification.notify(
@@ -99,8 +107,10 @@ class Window(QWidget):
                             timeout = 5,
                         )
                         self.Short_break()
+                    self.num_pomodoros += 1
 
                 elif self.mode == "Short Break":
+
                     notification.notify(
                         title = "Beginning Pomodoro",
                         message = "Short break is over",
@@ -117,49 +127,55 @@ class Window(QWidget):
                     self.Pomodoro()
                     self.num_pomodoros += 1
                 self.Start()
-                
 
     def Start(self):
-        if self.running == True:
+        if self.running:
             return
         else:
             self.running = True
-    
-    def Stop(self): 
-        if self.running == False:
+
+    def Stop(self):
+        if not self.running:
             return
         else:
             self.running = False
-    def Pomodoro(self):
+    # Variable is here for testing purposes.
+    # Makes it much easier to shorten times
 
+    def Pomodoro(self):
+        logging.info("Starting Pomodoro %s", str(self.num_pomodoros))
         self.running = False
-        self.time = 25 * 60
-        self.mode = "Pomodoro"    
+        self.time = 25 * self.minute_length
+        self.mode = "Pomodoro"
         self.set_label()
         self.mode_label.setText(self.mode)
 
-
     def Short_break(self):
+        logging.info("Starting Short Break")
         self.running = False
-        self.time = 5 * 60
+        self.time = 5 * self.minute_length
         self.mode = "Short Break"
         self.mode_label.setText(self.mode)
         self.set_label()
 
-
     def Long_break(self):
+        logging.info("Starting Long Break")
         self.running = False
-        self.time = 15 * 60
+        self.time = 15 * self.minute_length
         self.mode = "Long Break"
         self.mode_label.setText(self.mode)
         self.set_label()
 
 
-
-
 if __name__ == "__main__":
+    logging.basicConfig(
+        filename='pomo_error.log',
+        format = '%(asctime)s %(levelname)s:%(message)s',
+        datefmt='%M:%S',
+        level=logging.DEBUG)
+    logging.info("Started Pomodoro")
+
     app = QApplication(sys.argv)
     window = Window()
     window.show()
     sys.exit(app.exec_())
-
